@@ -1,55 +1,60 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function Register() {
     const navigate = useNavigate();
-
-    const [form, setForm] = useState({
-        first_name: "",
-        last_name: "",
-        email: "",
-        password: "",
-    });
-
+    const [username, setUsername] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [user, setUser] = useState(null);
 
-    const handleChange = (e) => {
-        setForm({
-            ...form,
-            [e.target.name]: e.target.value,
-        });
-    };
+    useEffect(() => {
+        fetch("http://localhost:8000/api/user",{
+            method: "GET",
+            credentials: "include",
+            headers: {
+                "Accept": "application/json",
+            },
+        })
+        .then(async (response) => {
+                const data = await response.json();
+                if (response.ok) {
+                    setUser(data);
+                }
+            })
+    }, []);
+
+    if(user) {
+        navigate("/dashboard");
+        return null;
+    }
 
     const handleRegister = async (e) => {
         e.preventDefault();
-
         setError("");
         setLoading(true);
-
         try {
-            const response = await fetch(
-                "http://localhost:8000/api/register",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    credentials: "include",
-                    body: JSON.stringify(form),
-                }
-            );
+            const res = await fetch("http://localhost:8000/api/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ username: username, first_name: firstName, last_name: lastName, email: email, password: password }),
+            });
 
-            const data = await response.json();
-
-            if (!response.ok) {
+            const data = await res.json();
+            if (!res.ok) {
                 setError(data.message || "Registration failed");
+                setLoading(false);
                 return;
             }
 
             navigate("/dashboard");
         } catch (err) {
-            setError("Could not connect to the server.");
+            setError("Could not connect to server.");
         } finally {
             setLoading(false);
         }
@@ -58,128 +63,90 @@ export default function Register() {
     return (
         <main className="auth-page">
             <div className="auth-container">
-
+                <Link to="/" className="auth-logo">NEXA<span>.</span></Link>
                 <div className="auth-header">
-                    <Link to="/" className="auth-logo">
-                        NEXA
-                    </Link>
-
-                    <h1>Create your account.</h1>
-
-                    <p>
-                        Start managing your money in one simple place.
-                    </p>
+                    <span className="eyebrow">New account</span>
+                    <h1>Create your account</h1>
+                    <p>Fill in your details to get started with Nexa.</p>
                 </div>
 
-                <form
-                    className="auth-form"
-                    onSubmit={handleRegister}
-                >
+                <form className="auth-form" onSubmit={handleRegister}>
+                    {error && <div className="auth-error" role="alert">{error}</div>}
 
-                    {error && (
-                        <div className="auth-error">
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="form-row">
-
-                        <div className="form-group">
-                            <label htmlFor="first_name">
-                                First name
-                            </label>
-
-                            <input
-                                id="first_name"
-                                name="first_name"
-                                type="text"
-                                placeholder="John"
-                                value={form.first_name}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label htmlFor="last_name">
-                                Last name
-                            </label>
-
-                            <input
-                                id="last_name"
-                                name="last_name"
-                                type="text"
-                                placeholder="Doe"
-                                value={form.last_name}
-                                onChange={handleChange}
-                                required
-                            />
-                        </div>
-
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="register-email">
-                            Email
-                        </label>
-
+                    <label className="auth-field" htmlFor="username">Username
                         <input
-                            id="register-email"
+                            id="username"
+                            name="username"
+                            type="text"
+                            placeholder="john_doe"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                        />
+                    </label>
+
+                    <label className="auth-field" htmlFor="first_name">First name
+                        <input
+                            id="first_name"
+                            name="first_name"
+                            type="text"
+                            placeholder="John"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
+                        />
+                    </label>
+
+                    <label className="auth-field" htmlFor="last_name">Last name
+                        <input
+                            id="last_name"
+                            name="last_name"
+                            type="text"
+                            placeholder="Doe"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
+                        />
+                    </label>
+
+                    <label className="auth-field" htmlFor="email">Email
+                        <input
+                            id="email"
                             name="email"
                             type="email"
                             placeholder="you@example.com"
-                            value={form.email}
-                            onChange={handleChange}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                             autoComplete="email"
                         />
-                    </div>
+                    </label>
 
-                    <div className="form-group">
-                        <label htmlFor="register-password">
-                            Password
-                        </label>
-
+                    <label className="auth-field" htmlFor="password">Password
                         <input
-                            id="register-password"
+                            id="password"
                             name="password"
                             type="password"
                             placeholder="Create a password"
-                            value={form.password}
-                            onChange={handleChange}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             required
                             minLength="6"
                             autoComplete="new-password"
                         />
-                    </div>
+                    </label>
 
-                    <button
-                        className="auth-button"
-                        type="submit"
-                        disabled={loading}
-                    >
-                        {loading
-                            ? "Creating account..."
-                            : "Create account"}
+                    <button className="auth-button" type="submit" disabled={loading}>
+                        {loading ? "Creating account..." : "Create account"}
                     </button>
-
                 </form>
 
                 <div className="auth-footer">
                     <span>Already have an account?</span>
-
-                    <Link to="/login">
-                        Log in
-                    </Link>
+                    <Link to="/login">Log in</Link>
                 </div>
 
-                <Link
-                    to="/"
-                    className="back-home"
-                >
-                    ← Back to home
-                </Link>
-
+                <Link to="/" className="back-home">← Back to home</Link>
             </div>
         </main>
     );

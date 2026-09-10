@@ -31,24 +31,28 @@ app.use(session({
 		maxAge: 365 * 24 * 60 * 60 * 1000
 	}
 }));
+
 app.use(require('express').json());
 database.start();
-
-app.get("/api/account", (req, res) => {
-	res.json(req.session)
-})
-
-//database.updateBalance(1, 5)
-//console.log(database.transfer(1,2,5))
 
 app.get("/api/user", (req, res) => {
 	if(!req.session.userId)
 		return res.status(401).json({ success: false, message: "User isn't logged in" })
 	let account = database.getAccount(req.session.userId)
-	if(!account.success)
+	if(account.success === false)
 		return res.status(400).send(account)
 	res.json(database.getAccount(req.session.userId))
 })
+
+app.get("/api/transactions", (req, res) => {
+	if(!req.session.userId)
+		return res.status(401).json({ success: false, message: "User isn't logged in" })
+	let account = database.getAccount(req.session.userId)
+	if(account.success === false)
+		return res.status(400).send(account)
+	res.json(database.getTransactionLogs(req.session.userId))
+})
+
 
 app.post("/api/register", (req, res) => {
 	const { email, username, password, first_name, last_name } = req.body;
@@ -88,27 +92,27 @@ app.post("/api/transfer", (req, res) => {
 	}
 	const amount = req.body.amount;
 	const toUsername = req.body.toUsername;
-	if (typeof amount != "number" || amount <= 0) {
+	const message = req.body.message || "Transfer";
+	if (typeof amount != "number" || amount <= 0.01) {
 		return res.status(400).json({ success: false, message: "Invalid amount" });
 	}
 	const fromRequest = database.getAccount(req.session.userId);
 	const toRequest = database.getAccountFromUser(toUsername);
-	if (!fromRequest.success) {
+	if (fromRequest.success === false) {
 		return res.status(400).json({ success: false, message: "Sender account error" });
 	}
-	if (!toRequest.success) {
+	if (toRequest.success === false) {
 		return res.status(400).json({ success: false, message: "Receiver account not found" });
 	}
-	const fromAccount = fromRequest.account;
-	const toAccount = toRequest.account;
-	if (fromAccount.id == toAccount.id) {
+	if (fromRequest.id == toRequest.id) {
 		return res.status(400).json({ success: false, message: "Cannot transfer to yourself" });
 	}
-	if (fromAccount.balance < amount) {
-		return res.status(400).json({ success: false, message: "User doesn't have the amount to transfer" });
+	if (fromRequest.balance < amount) {
+		return res.status(400).json({ success: false, message: "You don't have the amount to transfer" });
 	}
-	database.updateBalance(fromAccount.id, fromAccount.balance - amount);
-	database.updateBalance(toAccount.id, toAccount.balance + amount);
+	database.updateBalance(fromRequest.id, fromRequest.balance - amount);
+	database.updateBalance(toRequest.id, toRequest.balance + amount);
+	database.addToTransactionLog(fromRequest.id, toRequest.id, message, amount);
 	res.json({ success: true, message: "Transfer complete" });
 });
 

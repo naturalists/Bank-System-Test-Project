@@ -75,14 +75,16 @@ class DatabaseService {
 		const account = this.db.prepare(`SELECT * FROM bank_accounts WHERE id = ?`).get(id);
 		if(!account)
 			return {success: false, message: "Account doesn't exist"}
-		return {success:true, account: account}
+		delete account.password;
+		return account 
 	}
 
 	getAccountFromUser(username) {
 		const account = this.db.prepare(`SELECT * FROM bank_accounts WHERE username = ?`).get(username);
 		if(!account)
 			return {success: false, message: "Account doesn't exist"}
-		return {success:true, account: account}
+		delete account.password;
+		return account
 	}
 	
 	updateBalance(id, balance) {
@@ -96,6 +98,36 @@ class DatabaseService {
 			return { success: true, message: "Balance updated" };
 		} catch(err) {
 			return { success: false, message: "Failed to update balance" };
+		}
+	}
+
+	addToTransactionLog(senderId, receiverId, type, amount) {
+		try {
+			const stmt = this.db.prepare(`INSERT INTO transaction_logs(sender_id, receiver_id, type, amount) VALUES (?, ?, ?, ?)`);
+			stmt.run(senderId, receiverId, type, amount);
+			return { success: true, message: "Transaction logged" };
+		}
+		catch (err) {
+			return { success: false, message: "Failed to log transaction" };
+		}
+	}
+
+	getTransactionLogs(accountId) {
+		try {
+			const logs = this.db.prepare(`SELECT * FROM transaction_logs WHERE sender_id = ? OR receiver_id = ? ORDER BY created_at DESC`).all(accountId, accountId);
+			var formattedLogs = logs.map(log => {
+				return {
+					sender: this.getAccount(log.sender_id).username,
+					receiver: this.getAccount(log.receiver_id).username,
+					type: log.type,
+					amount: log.amount,
+					created_at: log.created_at
+				};
+			});
+			return { success: true, logs: formattedLogs };
+		}
+		catch (err) {
+			return { success: false, message: "Failed to retrieve transaction logs" };
 		}
 	}
 }
